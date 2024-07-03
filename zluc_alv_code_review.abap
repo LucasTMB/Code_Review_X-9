@@ -10,10 +10,12 @@ DATA: lo_event_handler TYPE REF TO lcl_event_handler.
 
 CREATE OBJECT lo_event_handler.
 
-DATA: lo_code_review TYPE REF TO zcl_code_review,
-      it_result      TYPE TABLE OF zty_code,
-      it_request     TYPE TABLE OF zty_request,
-      lv_answer      TYPE c.
+DATA: lo_code_review      TYPE REF TO zcl_code_review,
+      it_result           TYPE TABLE OF zty_code,
+      lt_new_result       TYPE TABLE OF zty_code,
+      it_request          TYPE TABLE OF zty_request,
+      lv_answer           TYPE c,
+      lv_new_count_errors TYPE i.
 
 DATA: lo_alv              TYPE REF TO cl_salv_table,
       lex_message         TYPE REF TO cx_salv_msg,
@@ -182,8 +184,8 @@ CLASS lcl_event_handler IMPLEMENTATION.
                           lt_select = lt_altered_lines
                           ).
 
-            DATA(lt_new_result) = lo_code_review->verificar_fae( nome_programa = p_prog ).
-            DESCRIBE TABLE lt_new_result LINES DATA(lv_new_count_errors).
+            lt_new_result = lo_code_review->verificar_fae( nome_programa = p_prog ).
+            DESCRIBE TABLE lt_new_result LINES lv_new_count_errors.
 
             IF sy-subrc = 0.
               IF lv_count_erros <> lv_new_count_errors.
@@ -195,11 +197,10 @@ CLASS lcl_event_handler IMPLEMENTATION.
                   MESSAGE |A Task { lv_request-task } foi criada na Request { lv_request-request }. | TYPE 'I'.
                 ENDIF.
                 MESSAGE 'Código corrigido com sucesso!' TYPE 'I'.
+                LEAVE TO SCREEN 0.
               ELSE.
                 MESSAGE 'Por favor, escolha pelo menos uma das linhas para serem corrigidas.' TYPE 'I'.
               ENDIF.
-
-              LEAVE TO SCREEN 0.
             ENDIF.
           ELSE.
             LEAVE TO SCREEN 0.
@@ -210,9 +211,17 @@ CLASS lcl_event_handler IMPLEMENTATION.
                             lt_select = lt_altered_lines
                             ).
 
-          MESSAGE 'Código corrigido com sucesso!' TYPE 'I'.
+          lt_new_result = lo_code_review->verificar_fae( nome_programa = p_prog ).
+          DESCRIBE TABLE lt_new_result LINES lv_new_count_errors.
 
-          LEAVE TO SCREEN 0.
+          IF sy-subrc = 0.
+            IF lv_count_erros <> lv_new_count_errors.
+              MESSAGE 'Código corrigido com sucesso!' TYPE 'I'.
+              LEAVE TO SCREEN 0.
+            ELSE.
+              MESSAGE 'Por favor, escolha pelo menos uma das linhas para serem corrigidas.' TYPE 'I'.
+            ENDIF.
+          ENDIF.
         ENDIF.
 
       WHEN OTHERS.
